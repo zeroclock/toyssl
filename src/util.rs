@@ -16,7 +16,7 @@ impl ParsedUrl {
             if let Some(path_pos) = path_start_pos {
                 let path_pos = path_pos.saturating_add(host_pos);
                 let host = &uri[host_pos..path_pos];
-                let path = &uri[path_pos.saturating_add(1)..];
+                let path = &uri[path_pos..];
                 return Some(
                     ParsedUrl {
                         host: String::from(host),
@@ -39,7 +39,7 @@ mod tests {
         let actual = Some(
             ParsedUrl {
                 host: String::from("www.example.com"),
-                path: String::from("this/is/path"),
+                path: String::from("/this/is/path"),
             }
         );
         assert_eq!(actual, result);
