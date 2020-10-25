@@ -13,7 +13,7 @@ use std::net::{
     ToSocketAddrs,
     TcpStream,
 };
-use toyssl::util::ParsedUrl;
+use toyssl::http::ParsedUrl;
 
 const HTTP_PORT: u32 = 80;
 
@@ -21,11 +21,15 @@ const HTTP_PORT: u32 = 80;
 fn main() {
     let args: Vec<String> = env::args().collect();
 
+    println!("length: {}", args.len());
+
+    // arguments validation
     if args.len() < 2 {
-        eprintln!("Usage: toyssl <URL>");
+        eprintln!("Usage: toyssl [-p http://[username:password@]proxy-host:proxy-port] <URL>");
         exit(1);
     }
 
+    // parsing url
     let parsed_url = ParsedUrl::new(&args[1]);
 
     if parsed_url.is_none() {
@@ -37,7 +41,10 @@ fn main() {
 
     println!("Connecting to host {}", parsed_url.host);
 
+    // resolve ip from hostname
     let addrs = format!("{}:{}", parsed_url.host, HTTP_PORT).to_socket_addrs();
+
+    println!("Resolved IP: {:?}", addrs);
 
     if addrs.is_err() {
         eprintln!("Error in name resolution.");
@@ -58,7 +65,7 @@ fn main() {
                 let mut writer = BufWriter::new(&stream);
                 
                 // format HTTP request
-                let mut header = format!("GET {} HTTP/1.1\r\nHost: {}\r\n\r\n", parsed_url.path, parsed_url.host);
+                let header = format!("GET {} HTTP/1.1\r\nHost: {}\r\n\r\n", parsed_url.path, parsed_url.host);
                 println!("GET request sending...");
                 println!("-- Request --\n{}", header);
 
