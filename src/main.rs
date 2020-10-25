@@ -10,15 +10,22 @@ use std::{
     },
 };
 use std::net::{
+    SocketAddr,
     ToSocketAddrs,
     TcpStream,
 };
-use toyssl::http::ParsedUrl;
+use anyhow::Result;
+
+use toyssl::http::{
+    ParsedUrl,
+    ParsedProxyUrl,
+    http_get,
+};
 
 const HTTP_PORT: u32 = 80;
 
 /// Simple command-line HTTP client
-fn main() {
+fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     println!("length: {}", args.len());
@@ -30,10 +37,18 @@ fn main() {
     }
 
     // parsing url
-    let parsed_url = ParsedUrl::new(&args[1]);
+    let mut idx: usize = 1;
+    let mut parsed_proxy_url: Option<ParsedProxyUrl> = None;
+    if args[idx] == "-p" {
+        idx += 1;
+        parsed_proxy_url = Some(ParsedProxyUrl::new(&args[idx])?);
+        idx += 1;
+    }
+    
+    let parsed_url = ParsedUrl::new(&args[idx]);
 
     if parsed_url.is_none() {
-        eprintln!("Error - malformed URL '{}'", args[1]);
+        eprintln!("Error - malformed URL '{}'", args[idx]);
         exit(1);
     }
 
@@ -42,8 +57,12 @@ fn main() {
     println!("Connecting to host {}", parsed_url.host);
 
     // resolve ip from hostname
-    let addrs = format!("{}:{}", parsed_url.host, HTTP_PORT).to_socket_addrs();
-
+    let addrs = if let Some(proxy) = &parsed_proxy_url {
+        format!("{}:{}", proxy.host, proxy.port).to_socket_addrs()
+    } else {
+        format!("{}:{}", parsed_url.host, HTTP_PORT).to_socket_addrs()
+    };
+    
     println!("Resolved IP: {:?}", addrs);
 
     if addrs.is_err() {
@@ -60,17 +79,7 @@ fn main() {
                 exit(4);
             },
             Ok(stream) => {
-                println!("Retrieving document: '{}'", parsed_url.path);
-                let mut reader = BufReader::new(&stream);
-                let mut writer = BufWriter::new(&stream);
-                
-                // format HTTP request
-                let header = format!("GET {} HTTP/1.1\r\nHost: {}\r\n\r\n", parsed_url.path, parsed_url.host);
-                println!("GET request sending...");
-                println!("-- Request --\n{}", header);
-
-                tcp_write(&mut writer, &header);
-                tcp_read(&mut reader);
+                http_get(&stream, parsed_url, parsed_proxy_url);
             }
         }
     } else {
@@ -78,18 +87,6 @@ fn main() {
         exit(1);
     }
 
-    exit(0);
-}
-
-fn tcp_read(reader: &mut BufReader<&TcpStream>) {
-    let mut msg = String::new();
-    // reader.read_line(&mut msg).expect("Failed to read lines from tcp stream");
-    reader.read_to_string(&mut msg).expect("Failed to read lines from tcp stream");
-    println!("{}", msg);
-}
-
-fn tcp_write(writer: &mut BufWriter<&TcpStream>, msg: &str) {
-    writer.write(msg.as_bytes()).expect("Failed to send message to tcp stream");
-    writer.flush().unwrap();
+    Ok(())
 }
 

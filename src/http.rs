@@ -2,6 +2,15 @@
 // It has a function to make a HTTP request header.
 // In the http get method, we can make a HTTP request header transparently.
 
+use std::net::TcpStream;
+use std::{
+    io::{
+        prelude::*,
+        BufReader,
+        BufWriter,
+    },
+};
+
 use anyhow::{
     Result,
     Error,
@@ -117,6 +126,37 @@ impl ParsedProxyUrl {
             password,
         })
     }
+}
+
+pub fn http_get(tcp_stream: &TcpStream, parsed_url: ParsedUrl, parsed_proxy_url: Option<ParsedProxyUrl>) {
+    println!("Retrieving document: '{}'", parsed_url.path);
+    let mut reader = BufReader::new(tcp_stream);
+    let mut writer = BufWriter::new(tcp_stream);
+    
+    // format HTTP request
+    let header_part = if parsed_proxy_url.is_some() {
+        format!("GET http://{}{} HTTP/1.1\r\n", parsed_url.host, parsed_url.path)
+    } else {
+        format!("GET {} HTTP/1.1\r\n", parsed_url.path)
+    };
+    let header = format!("{}Host: {}\r\nConnection: close\r\n\r\n", header_part, parsed_url.host);
+    println!("GET request sending...");
+    println!("-- Request --\n{}", header);
+
+    tcp_write(&mut writer, &header);
+    tcp_read(&mut reader);
+}
+
+fn tcp_read(reader: &mut BufReader<&TcpStream>) {
+    let mut msg = String::new();
+    // reader.read_line(&mut msg).expect("Failed to read lines from tcp stream");
+    reader.read_to_string(&mut msg).expect("Failed to read lines from tcp stream");
+    println!("{}", msg);
+}
+
+fn tcp_write(writer: &mut BufWriter<&TcpStream>, msg: &str) {
+    writer.write(msg.as_bytes()).expect("Failed to send message to tcp stream");
+    writer.flush().unwrap();
 }
 
 #[cfg(test)]
