@@ -132,7 +132,7 @@ impl ParsedProxyUrl {
     }
 }
 
-pub fn http_get(tcp_stream: &TcpStream, parsed_url: ParsedUrl, parsed_proxy_url: Option<ParsedProxyUrl>) {
+pub fn http_get(tcp_stream: &TcpStream, parsed_url: &ParsedUrl, parsed_proxy_url: &Option<ParsedProxyUrl>) {
     println!("Retrieving document: '{}'", parsed_url.path);
     let mut reader = BufReader::new(tcp_stream);
     let mut writer = BufWriter::new(tcp_stream);
@@ -140,11 +140,11 @@ pub fn http_get(tcp_stream: &TcpStream, parsed_url: ParsedUrl, parsed_proxy_url:
     // format HTTP request
     let mut header = String::new();
     if parsed_proxy_url.is_some() {
-        let url = parsed_proxy_url.unwrap();
+        let url = parsed_proxy_url.as_ref().unwrap();
         header = format!("{}GET http://{}{} HTTP/1.1\r\n", header, parsed_url.host, parsed_url.path);
         if url.username.is_some() {
-            let username = url.username.unwrap();
-            let password = url.password.unwrap();
+            let username = url.username.as_ref().unwrap();
+            let password = url.password.as_ref().unwrap();
             let auth = base64_encode(&format!("{}:{}", username, password));
             header = format!("{}Proxy-Authorization: BASIC {}\r\n", header, auth);
             header = format!("{}Authorization: BASIC {}\r\n", header, auth);
