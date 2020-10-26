@@ -17,6 +17,10 @@ use anyhow::{
     anyhow,
 };
 
+use super::base64::{
+    base64_encode,
+};
+
 const HTTP_PORT: u32 = 80;
 
 /// Host and path parsed from an uri
@@ -134,12 +138,21 @@ pub fn http_get(tcp_stream: &TcpStream, parsed_url: ParsedUrl, parsed_proxy_url:
     let mut writer = BufWriter::new(tcp_stream);
     
     // format HTTP request
-    let header_part = if parsed_proxy_url.is_some() {
-        format!("GET http://{}{} HTTP/1.1\r\n", parsed_url.host, parsed_url.path)
+    let mut header = String::new();
+    if parsed_proxy_url.is_some() {
+        let url = parsed_proxy_url.unwrap();
+        header = format!("{}GET http://{}{} HTTP/1.1\r\n", header, parsed_url.host, parsed_url.path);
+        if url.username.is_some() {
+            let username = url.username.unwrap();
+            let password = url.password.unwrap();
+            let auth = base64_encode(&format!("{}:{}", username, password));
+            header = format!("{}Proxy-Authorization: BASIC {}\r\n", header, auth);
+            header = format!("{}Authorization: BASIC {}\r\n", header, auth);
+        }
     } else {
-        format!("GET {} HTTP/1.1\r\n", parsed_url.path)
-    };
-    let header = format!("{}Host: {}\r\nConnection: close\r\n\r\n", header_part, parsed_url.host);
+        header = format!("{}GET {} HTTP/1.1\r\n", header, parsed_url.path);
+    }
+    let header = format!("{}Host: {}\r\nConnection: close\r\n\r\n", header, parsed_url.host);
     println!("GET request sending...");
     println!("-- Request --\n{}", header);
 
