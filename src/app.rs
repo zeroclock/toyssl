@@ -26,14 +26,9 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(args: Vec<String>) -> Result<Self> {
-        // arguments validation
-        if args.len() < 2 {
-            return Err(anyhow!("Usage: toyssl [-p http://[username:password@]proxy-host:proxy-port] <URL>"));
-        }
-
+    pub fn new(args: &Vec<String>) -> Result<Self> {
         // parsing url
-        let mut idx: usize = 1;
+        let mut idx: usize = 2;
         let mut parsed_proxy_url: Option<ParsedProxyUrl> = None;
         if args[idx] == "-p" {
             idx += 1;
