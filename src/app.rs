@@ -1,17 +1,26 @@
 use std::net::{
     ToSocketAddrs,
     TcpStream,
+    TcpListener,
 };
 use anyhow::{
     Result,
     anyhow,
     Context as _,
 };
+use std::{
+    io::{
+        BufReader,
+        BufWriter,
+    },
+};
 
 use super::http::{
     ParsedUrl,
     ParsedProxyUrl,
     http_get,
+    tcp_write,
+    tcp_read_line,
 };
 
 const HTTP_PORT: u32 = 80;
@@ -77,6 +86,66 @@ impl App for Client {
             return Err(anyhow!("Invalid Host:Port combination."));
         }
 
+        Ok(())
+    }
+}
+
+enum ResponseStatus {
+    NotImplemented,
+    Success,
+}
+
+use ResponseStatus::*;
+
+pub struct Server;
+
+impl Server {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    fn process_http_request(&self, stream: &TcpStream) -> Result<()> {
+        let mut reader = BufReader::new(stream);
+        let mut writer = BufWriter::new(stream);
+        
+        let request = tcp_read_line(&mut reader);
+        let mut response = String::new();
+        // println!("Received request: ");
+        // println!("{}", request);
+
+        let get_pos = request.find("GET");
+        if let Some(_) = get_pos {
+            response = self.build_response(Success);
+        } else {
+            response = self.build_response(NotImplemented);
+        }
+
+        tcp_write(&mut writer, &response);
+        
+        Ok(())
+    }
+
+    fn build_response(&self, status: ResponseStatus) -> String {
+        let mut result = String::new();
+        match status {
+            NotImplemented => {
+                result = format!("HTTP/1.1 501 Error Occurred\r\n\r\n");
+            },
+            Success => {
+                result = format!("HTTP/1.1 200 Success\r\nConnection: Close\r\nContent-Type:text/html\r\n\r\n<html><head><title>Test Page</title></head><body>Nothing here</body></html>\r\n");
+            },
+        }
+        result
+    }
+}
+
+impl App for Server {
+    fn run(&mut self) -> Result<()> {
+        let listener = TcpListener::bind("127.0.0.1:8080")?;
+        for stream in listener.incoming() {
+            // TODO: ideally, this would spawn a new thread.
+            self.process_http_request(&stream?)?
+        }
         Ok(())
     }
 }

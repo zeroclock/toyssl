@@ -157,17 +157,31 @@ pub fn http_get(tcp_stream: &TcpStream, parsed_url: &ParsedUrl, parsed_proxy_url
     println!("-- Request --\n{}", header);
 
     tcp_write(&mut writer, &header);
-    tcp_read(&mut reader);
+    print!("{}", tcp_read(&mut reader));
 }
 
-fn tcp_read(reader: &mut BufReader<&TcpStream>) {
+pub fn tcp_read(reader: &mut BufReader<&TcpStream>) -> String {
     let mut msg = String::new();
-    // reader.read_line(&mut msg).expect("Failed to read lines from tcp stream");
     reader.read_to_string(&mut msg).expect("Failed to read lines from tcp stream");
-    println!("{}", msg);
+    msg
 }
 
-fn tcp_write(writer: &mut BufWriter<&TcpStream>, msg: &str) {
+pub fn tcp_read_line(reader: &mut BufReader<&TcpStream>) -> String {
+    let mut msg = String::new();
+    loop {
+        let mut l = String::new();
+        reader.read_line(&mut l).expect("Failed to read lines from tcp stream.");
+        // TODO: There's a problem that if request with no CRLF, the server will crash
+        if l == "\r\n".to_string() {
+            break;
+        }
+        msg = format!("{}{}", msg, l);
+    }
+    
+    msg
+}
+
+pub fn tcp_write(writer: &mut BufWriter<&TcpStream>, msg: &str) {
     writer.write(msg.as_bytes()).expect("Failed to send message to tcp stream");
     writer.flush().unwrap();
 }

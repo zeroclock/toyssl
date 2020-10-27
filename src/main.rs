@@ -9,6 +9,7 @@ use anyhow::{
 use toyssl::app::{
     App,
     Client,
+    Server,
 };
 
 const ARGS_ERROR_MSG: &str = "\n Usage (as client): toyssl client [-p http://[username:password@]proxy-host:proxy-port] <URL>\n Usage (as server): toyssl server";
@@ -29,7 +30,8 @@ fn main() -> Result<()> {
             client.run()?;
         },
         "server" => {
-            println!("Server mode");
+            let mut server = Server::new();
+            server.run()?;
         },
         _ => {
             return Err(anyhow!(ARGS_ERROR_MSG));
